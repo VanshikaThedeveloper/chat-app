@@ -57,14 +57,14 @@ export const sendMessageService = async (chatId, senderId, content) => {
   );
 
   if (receiver) {
-    const receiverSocketId = getUserSocketId(receiver._id.toString());
-
-    if (receiverSocketId) {
-      getIO()
-        .to(receiverSocketId)
-        .emit(SOCKET_EVENTS.RECEIVE_MESSAGE, populatedMessage);
-    }
+    getIO()
+      .to(receiver._id.toString())
+      .emit(SOCKET_EVENTS.RECEIVE_MESSAGE, populatedMessage);
   }
+
+  getIO()
+    .to(senderId.toString())
+    .emit(SOCKET_EVENTS.RECEIVE_MESSAGE, populatedMessage);
 
   return populatedMessage;
 };

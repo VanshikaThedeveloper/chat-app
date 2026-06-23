@@ -28,7 +28,7 @@ export const handleTyping = async (userId, chatId) => {
     return;
   }
 
-  getIO().to(receiverSocketId).emit(SOCKET_EVENTS.TYPING, {
+  getIO().to(receiver.toString()).emit(SOCKET_EVENTS.TYPING, {
     chatId,
     userId,
   });
@@ -55,7 +55,7 @@ export const handleStopTyping = async (userId, chatId) => {
     return;
   }
 
-  getIO().to(receiverSocketId).emit(SOCKET_EVENTS.STOP_TYPING, {
+  getIO().to(receiver.toString()).emit(SOCKET_EVENTS.STOP_TYPING, {
     chatId,
     userId,
   });

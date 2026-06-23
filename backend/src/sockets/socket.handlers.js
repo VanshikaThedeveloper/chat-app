@@ -10,11 +10,23 @@ export const registerSocketHandlers = (io) => {
   io.on(SOCKET_EVENTS.CONNECTION, async (socket) => {
     const { userId } = socket.user;
 
-    connectedUsers.set(userId, socket.id);
-    await setUserOnline(userId);
-    socket.broadcast.emit(SOCKET_EVENTS.USER_ONLINE, { userId });
+    // Join user-specific room
+    socket.join(userId);
 
-    console.log(`User Connected: ${userId}`);
+    // Track connections
+    const isAlreadyOnline = connectedUsers.has(userId) && connectedUsers.get(userId).size > 0;
+    if (!connectedUsers.has(userId)) {
+      connectedUsers.set(userId, new Set());
+    }
+    connectedUsers.get(userId).add(socket.id);
+
+    // Only set online and broadcast if this is the first session
+    if (!isAlreadyOnline) {
+      await setUserOnline(userId);
+      socket.broadcast.emit(SOCKET_EVENTS.USER_ONLINE, { userId });
+    }
+
+    console.log(`User Connected: ${userId} (Sockets active: ${connectedUsers.get(userId).size})`);
 
 
     socket.on(SOCKET_EVENTS.TYPING, async ({ chatId }) => {
@@ -39,14 +51,13 @@ export const registerSocketHandlers = (io) => {
     socket.on(SOCKET_EVENTS.MESSAGE_READ, async ({ messageId }) => {
       const message = await markMessageAsRead(messageId);
       if (message) {
-        const senderSocketId = connectedUsers.get(message.senderId.toString());
-        if (senderSocketId) {
-          io.to(senderSocketId).emit(SOCKET_EVENTS.MESSAGE_READ, {
-            messageId,
-            status: "read",
-          });
-        }
-        socket.emit(SOCKET_EVENTS.MESSAGE_READ, {
+        const senderId = message.senderId.toString();
+        // Emit read receipt to both sender and receiver rooms
+        io.to(senderId).emit(SOCKET_EVENTS.MESSAGE_READ, {
+          messageId,
+          status: "read",
+        });
+        io.to(userId).emit(SOCKET_EVENTS.MESSAGE_READ, {
           messageId,
           status: "read",
         });
@@ -55,11 +66,15 @@ export const registerSocketHandlers = (io) => {
 
     socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
       try {
-        await setUserOffline(userId);
-
-        connectedUsers.delete(userId);
-        socket.broadcast.emit(SOCKET_EVENTS.USER_OFFLINE, { userId });
-
+        const userSockets = connectedUsers.get(userId);
+        if (userSockets) {
+          userSockets.delete(socket.id);
+          if (userSockets.size === 0) {
+            connectedUsers.delete(userId);
+            await setUserOffline(userId);
+            socket.broadcast.emit(SOCKET_EVENTS.USER_OFFLINE, { userId });
+          }
+        }
         console.log(`User Disconnected: ${userId}`);
       } catch (error) {
         console.error("Disconnect Error:", error.message);

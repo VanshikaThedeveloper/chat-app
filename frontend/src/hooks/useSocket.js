@@ -12,14 +12,21 @@ import {
 
 const useSocket = () => {
   const dispatch = useDispatch();
-  const { accessToken, isAuthenticated } = useSelector((state) => state.auth);
+  const { accessToken, isAuthenticated, user } = useSelector((state) => state.auth);
   const activeChatId = useSelector((state) => state.chats.activeChat?._id);
   const activeChatRef = useRef(activeChatId);
 
-  // Keep ref in sync for use inside socket callbacks
+  const currentUserId = user?.id || user?._id;
+  const currentUserIdRef = useRef(currentUserId);
+
+  // Keep refs in sync for use inside socket callbacks
   useEffect(() => {
     activeChatRef.current = activeChatId;
   }, [activeChatId]);
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!isAuthenticated || !accessToken) {
@@ -31,10 +38,15 @@ const useSocket = () => {
     socketService.connect(accessToken);
 
     socketService.onReceiveMessage((message) => {
+      const senderId = message.senderId?._id || message.senderId;
+      const isMine = senderId === currentUserIdRef.current;
+
       // Add message to current chat if it matches
       if (activeChatRef.current === message.chatId) {
         dispatch(addMessage(message));
-        socketService.emitMessageRead(message._id);
+        if (!isMine) {
+          socketService.emitMessageRead(message._id);
+        }
       }
 
       // Update last message in chat list
