@@ -8,7 +8,8 @@ let io;
 export const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: true,
+      credentials: true,
     },
   });
 

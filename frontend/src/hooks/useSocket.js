@@ -30,10 +30,12 @@ const useSocket = () => {
     // Connect
     socketService.connect(accessToken);
 
-    // Wire up event listeners
     socketService.onReceiveMessage((message) => {
       // Add message to current chat if it matches
-      dispatch(addMessage(message));
+      if (activeChatRef.current === message.chatId) {
+        dispatch(addMessage(message));
+        socketService.emitMessageRead(message._id);
+      }
 
       // Update last message in chat list
       dispatch(
@@ -42,11 +44,6 @@ const useSocket = () => {
           message,
         })
       );
-
-      // Mark as read if user is viewing this chat
-      if (activeChatRef.current === message.chatId) {
-        socketService.emitMessageRead(message._id);
-      }
     });
 
     socketService.onTyping(({ chatId, userId }) => {

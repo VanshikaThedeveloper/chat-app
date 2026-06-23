@@ -12,6 +12,7 @@ export const registerSocketHandlers = (io) => {
 
     connectedUsers.set(userId, socket.id);
     await setUserOnline(userId);
+    socket.broadcast.emit(SOCKET_EVENTS.USER_ONLINE, { userId });
 
     console.log(`User Connected: ${userId}`);
 
@@ -36,19 +37,33 @@ export const registerSocketHandlers = (io) => {
     });
 
     socket.on(SOCKET_EVENTS.MESSAGE_READ, async ({ messageId }) => {
-      await markMessageAsRead(messageId);
+      const message = await markMessageAsRead(messageId);
+      if (message) {
+        const senderSocketId = connectedUsers.get(message.senderId.toString());
+        if (senderSocketId) {
+          io.to(senderSocketId).emit(SOCKET_EVENTS.MESSAGE_READ, {
+            messageId,
+            status: "read",
+          });
+        }
+        socket.emit(SOCKET_EVENTS.MESSAGE_READ, {
+          messageId,
+          status: "read",
+        });
+      }
     });
 
-   socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
-     try {
-       await setUserOffline(userId);
+    socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
+      try {
+        await setUserOffline(userId);
 
-       connectedUsers.delete(userId);
+        connectedUsers.delete(userId);
+        socket.broadcast.emit(SOCKET_EVENTS.USER_OFFLINE, { userId });
 
-       console.log(`User Disconnected: ${userId}`);
-     } catch (error) {
-       console.error("Disconnect Error:", error.message);
-     }
-   });
+        console.log(`User Disconnected: ${userId}`);
+      } catch (error) {
+        console.error("Disconnect Error:", error.message);
+      }
+    });
   });
 };
