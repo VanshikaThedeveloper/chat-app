@@ -10,7 +10,14 @@ import messagesRouter from "./modules/messages/index.js";
 const app = express()
 
 app.use(express.json())
-app.use(cors())
+app.use(cors({
+    origin: [
+      "http://localhost:5173",
+      "https://your-vercel-app.vercel.app",
+      process.env.CLIENT_URL, // Add your client URL from environment variables
+    ],
+    credentials: true,
+  }))
 app.use(helmet())
 app.use(morgan('dev'))
 
