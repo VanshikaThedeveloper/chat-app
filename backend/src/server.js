@@ -14,7 +14,12 @@ const server = http.createServer(app);
 
 initializeSocket(server);
 
+
+
 connectDB();
+console.log("JWT_SECRET:", process.env.JWT_SECRET ? "FOUND" : "MISSING");
+console.log("MONGODB_URI:", process.env.MONGODB_URI ? "FOUND" : "MISSING");
+console.log("CLIENT_URL:", process.env.CLIENT_URL);
 
 server.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
